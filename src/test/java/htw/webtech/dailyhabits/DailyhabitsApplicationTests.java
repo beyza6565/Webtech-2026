@@ -17,8 +17,10 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -87,6 +89,16 @@ class DailyhabitsApplicationTests {
 		mockMvc.perform(patch("/api/v1/challenges/{id}/toggle", challenge.getId()))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.done", is(false)));
+	}
+
+	@Test
+	void corsPreflightAllowsPatchToggle() throws Exception {
+		mockMvc.perform(options("/api/v1/challenges/1/toggle")
+						.header("Origin", "http://localhost:5173")
+						.header("Access-Control-Request-Method", "PATCH"))
+				.andExpect(status().isOk())
+				.andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+				.andExpect(header().string("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS"));
 	}
 
 	@Test
