@@ -7,11 +7,19 @@ import java.util.List;
 @Service
 public class ChallengeService {
 
+    private final ChallengeRepository challengeRepository;
+
+    public ChallengeService(ChallengeRepository challengeRepository) {
+        this.challengeRepository = challengeRepository;
+    }
+
     public List<Challenge> getChallenges() {
-        return List.of(
-                new Challenge(1, "Push up", "Fitness", true),
-                new Challenge(2, "Wasser trinken", "Achtsamkeit", true)
-        );
+        return challengeRepository.findAll();
+    }
+
+    public Challenge createChallenge(Challenge challenge) {
+        challenge.setId(null);
+        return challengeRepository.save(challenge);
     }
 
 }
