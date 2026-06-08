@@ -10,9 +10,12 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.ObjectMapper;
 
+import static org.hamcrest.Matchers.anyOf;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -114,6 +117,23 @@ class DailyhabitsApplicationTests {
 	void getRandomChallengeReturnsNotFoundWhenEmpty() throws Exception {
 		mockMvc.perform(get("/api/v1/challenges/random"))
 				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void getRandomChallengeSuggestionReturnsGeneratedChallenge() throws Exception {
+		mockMvc.perform(get("/api/v1/challenges/suggestions/random"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.title", notNullValue()))
+				.andExpect(jsonPath("$.category", anyOf(
+						equalTo("Fitness"),
+						equalTo("Lernen"),
+						equalTo("Gesundheit"),
+						equalTo("Alltag"),
+						equalTo("Sozial")
+				)))
+				.andExpect(jsonPath("$.done", is(false)));
+
+		assertEquals(0, challengeRepository.count());
 	}
 
 }

@@ -33,6 +33,11 @@ public class ChallengeController {
         return challengeService.getRandomChallenge();
     }
 
+    @GetMapping("/challenges/suggestions/random")
+    public Challenge getRandomChallengeSuggestion() {
+        return challengeService.getRandomChallengeSuggestion();
+    }
+
     @PostMapping("/challenges")
     @ResponseStatus(HttpStatus.CREATED)
     public Challenge createChallenge(@RequestBody Challenge challenge) {
