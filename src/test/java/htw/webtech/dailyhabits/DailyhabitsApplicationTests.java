@@ -9,6 +9,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import tools.jackson.databind.ObjectMapper;
 
 import static org.hamcrest.Matchers.anyOf;
@@ -62,8 +64,7 @@ class DailyhabitsApplicationTests {
 
 	@Test
 	void createChallengeSavesNewChallenge() throws Exception {
-		Challenge challenge = new Challenge("Wasser trinken", "Achtsamkeit", false);
-
+        ChallengeCreateDto challenge = new ChallengeCreateDto("Wasser trinken", "Achtsamkeit", false);
 		mockMvc.perform(post("/api/v1/challenges")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(objectMapper.writeValueAsString(challenge)))
@@ -149,5 +150,53 @@ class DailyhabitsApplicationTests {
 
 		assertEquals(0, challengeRepository.count());
 	}
+
+    @Test
+    void updateChallengeChangesChallengeData() throws Exception {
+        Challenge challenge = challengeRepository.save(new Challenge("Push up", "Fitness", false));
+        ChallengeCreateDto updatedData = new ChallengeCreateDto("100 Liegestuetze", "Sport", true);
+
+        mockMvc.perform(put("/api/v1/challenges/{id}", challenge.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatedData)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title", is("100 Liegestuetze")))
+                .andExpect(jsonPath("$.category", is("Sport")))
+                .andExpect(jsonPath("$.done", is(true)));
+    }
+
+    @Test
+    void deleteChallengeRemovesChallenge() throws Exception {
+        Challenge challenge = challengeRepository.save(new Challenge("Lesen", "Bildung", false));
+
+        mockMvc.perform(delete("/api/v1/challenges/{id}", challenge.getId()))
+                .andExpect(status().isNoContent());
+
+        assertEquals(0, challengeRepository.count());
+    }
+
+    @Test
+    void deleteChallengeReturnsNotFoundForInvalidId() throws Exception {
+        mockMvc.perform(delete("/api/v1/challenges/999"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void updateChallengeReturnsNotFoundForInvalidId() throws Exception {
+        // Versuchen, eine Challenge zu bearbeiten, die nicht existiert (ID 999)
+        Challenge updatedData = new Challenge("100 Liegestuetze", "Sport", true);
+
+        mockMvc.perform(put("/api/v1/challenges/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updatedData)))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void toggleChallengeReturnsNotFoundForInvalidId() throws Exception {
+        // Versuchen, den Status einer Challenge zu ändern, die nicht existiert (ID 999)
+        mockMvc.perform(patch("/api/v1/challenges/999/toggle"))
+                .andExpect(status().isNotFound());
+    }
 
 }

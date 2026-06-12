@@ -21,7 +21,6 @@ public class ChallengeService {
     private final ObjectMapper objectMapper;
     private final Random random = new Random();
 
-    // Der API Key wird aus der application.properties injiziert
     public ChallengeService(
             ChallengeRepository challengeRepository,
             @Value("${openai.api.key}") String openAiApiKey,
@@ -29,8 +28,6 @@ public class ChallengeService {
 
         this.challengeRepository = challengeRepository;
         this.objectMapper = objectMapper;
-
-        // RestClient mit dem API-Key konfigurieren
         this.restClient = RestClient.builder()
                 .baseUrl("https://api.openai.com/v1")
                 .defaultHeader("Authorization", "Bearer " + openAiApiKey)
@@ -38,73 +35,94 @@ public class ChallengeService {
                 .build();
     }
 
-    // --- ALTE METHODEN (Bleiben unverändert für die Datenbank) ---
+    // --- NEUE HILFSMETHODE: Verwandelt eine Entity in ein DTO ---
+    private ChallengeResponseDto toDto(Challenge challenge) {
+        return new ChallengeResponseDto(
+                challenge.getId(),
+                challenge.getTitle(),
+                challenge.getCategory(),
+                challenge.isDone()
+        );
+    }
 
-    public List<Challenge> getChallenges(String category) {
+    public List<ChallengeResponseDto> getChallenges(String category) {
+        List<Challenge> challenges;
         if (category == null || category.isBlank()) {
-            return challengeRepository.findAll();
+            challenges = challengeRepository.findAll();
+        } else {
+            challenges = challengeRepository.findByCategoryIgnoreCase(category.trim());
         }
-        return challengeRepository.findByCategoryIgnoreCase(category.trim());
+        // Alle aus der DB in DTOs umwandeln
+        return challenges.stream().map(this::toDto).toList();
     }
 
-    public List<Challenge> getChallenges() {
-        return challengeRepository.findAll();
+    public ChallengeResponseDto createChallenge(ChallengeCreateDto request) {
+        // Aus dem Request-DTO ein neues Entity für die DB machen
+        Challenge challenge = new Challenge(request.title(), request.category(), request.done());
+        Challenge saved = challengeRepository.save(challenge);
+        return toDto(saved);
     }
 
-    public Challenge createChallenge(Challenge challenge) {
-        challenge.setId(null);
-        return challengeRepository.save(challenge);
-    }
-
-    public Challenge toggleChallenge(Long id) {
+    public ChallengeResponseDto toggleChallenge(Long id) {
         Challenge challenge = challengeRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Challenge not found"));
 
         challenge.setDone(!challenge.isDone());
-        return challengeRepository.save(challenge);
+        return toDto(challengeRepository.save(challenge));
     }
 
-    public Challenge getRandomChallenge() {
+    public ChallengeResponseDto updateChallenge(Long id, ChallengeCreateDto request) {
+        Challenge existingChallenge = challengeRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Challenge not found"));
+
+        existingChallenge.setTitle(request.title());
+        existingChallenge.setCategory(request.category());
+        existingChallenge.setDone(request.done());
+
+        return toDto(challengeRepository.save(existingChallenge));
+    }
+
+    public ChallengeResponseDto getRandomChallenge() {
         List<Challenge> challenges = challengeRepository.findAll();
         if (challenges.isEmpty()) {
             throw new ResponseStatusException(NOT_FOUND, "No challenges found");
         }
-
-        return challenges.get(random.nextInt(challenges.size()));
+        return toDto(challenges.get(random.nextInt(challenges.size())));
     }
 
-    // --- NEUE METHODE (Generiert Vorschläge mit OpenAI) ---
-
-    public Challenge getRandomChallengeSuggestion() {
-        // Prompt definieren
+    public ChallengeResponseDto getRandomChallengeSuggestion() {
         String prompt = "Generiere eine zufällige, alltägliche Aufgabe (Challenge) auf Deutsch. " +
                 "Kategorien dürfen NUR sein: Fitness, Lernen, Gesundheit, Alltag, Sozial. " +
                 "Antworte strikt mit einem JSON-Objekt mit den Schlüsseln 'title' und 'category'.";
 
         OpenAiRequest requestBody = new OpenAiRequest(
-                "gpt-3.5-turbo", // Oder gpt-4o-mini für günstigere/schnellere Antworten
+                "gpt-3.5-turbo",
                 List.of(new Message("user", prompt)),
-                new ResponseFormat("json_object") // Zwingt die KI, gültiges JSON zu liefern
+                new ResponseFormat("json_object")
         );
 
         try {
-            // API Call ausführen
             OpenAiResponse response = restClient.post()
                     .uri("/chat/completions")
                     .body(requestBody)
                     .retrieve()
                     .body(OpenAiResponse.class);
 
-            // Antwort auslesen und parsen
             String jsonContent = response.choices().get(0).message().content();
             GeneratedChallenge generated = objectMapper.readValue(jsonContent, GeneratedChallenge.class);
 
-            // Zurückgeben (done ist standardmäßig false)
-            return new Challenge(generated.title(), generated.category(), false);
+            // Rückgabe als DTO (ID ist null, da noch nicht gespeichert)
+            return new ChallengeResponseDto(null, generated.title(), generated.category(), false);
 
         } catch (Exception e) {
-            // Fallback, falls die API mal ausfällt oder das JSON falsch ist
             throw new ResponseStatusException(INTERNAL_SERVER_ERROR, "Konnte keine Challenge generieren: " + e.getMessage());
         }
+    }
+
+    public void deleteChallenge(Long id) {
+        if (!challengeRepository.existsById(id)) {
+            throw new ResponseStatusException(NOT_FOUND, "Challenge not found");
+        }
+        challengeRepository.deleteById(id);
     }
 }

@@ -1,15 +1,7 @@
 package htw.webtech.dailyhabits;
 
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -24,28 +16,39 @@ public class ChallengeController {
     }
 
     @GetMapping("/challenges")
-    public List<Challenge> getChallenge(@RequestParam(required = false) String category) {
+    public List<ChallengeResponseDto> getChallenge(@RequestParam(required = false) String category) {
         return challengeService.getChallenges(category);
     }
 
     @GetMapping("/challenges/random")
-    public Challenge getRandomChallenge() {
+    public ChallengeResponseDto getRandomChallenge() {
         return challengeService.getRandomChallenge();
     }
 
     @GetMapping("/challenges/suggestions/random")
-    public Challenge getRandomChallengeSuggestion() {
+    public ChallengeResponseDto getRandomChallengeSuggestion() {
         return challengeService.getRandomChallengeSuggestion();
     }
 
     @PostMapping("/challenges")
     @ResponseStatus(HttpStatus.CREATED)
-    public Challenge createChallenge(@RequestBody Challenge challenge) {
-        return challengeService.createChallenge(challenge);
+    public ChallengeResponseDto createChallenge(@RequestBody ChallengeCreateDto request) {
+        return challengeService.createChallenge(request);
     }
 
     @PatchMapping("/challenges/{id}/toggle")
-    public Challenge toggleChallenge(@PathVariable Long id) {
+    public ChallengeResponseDto toggleChallenge(@PathVariable Long id) {
         return challengeService.toggleChallenge(id);
+    }
+
+    @PutMapping("/challenges/{id}")
+    public ChallengeResponseDto updateChallenge(@PathVariable Long id, @RequestBody ChallengeCreateDto request) {
+        return challengeService.updateChallenge(id, request);
+    }
+
+    @DeleteMapping("/challenges/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteChallenge(@PathVariable Long id) {
+        challengeService.deleteChallenge(id);
     }
 }
